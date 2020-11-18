@@ -2,7 +2,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using API.Data;
+using API.DTOs;
 using API.Entities;
+using API.Interfaces;
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,29 +13,31 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : BaseApiController
     {
-        private readonly DataContext _context;
-        public UsersController(DataContext context)
+        private readonly IMapper _mapper;
+        private readonly IUserRepository _userRepository;
+        public UsersController(IUserRepository userRepository, IMapper mapper)
         {
-            _context = context;
+            _mapper = mapper;
+            _userRepository = userRepository;
         }
 
         [HttpGet]
-        [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<AppUser>>>  GetUsers() // Zamiast IEn można użyć List<> ale ma 
-                                                            //ona za dużo niepotrzebnych metod jak tylko na wyświetlenie listy. Więc IEn<> wystarczy
+        public async Task<ActionResult<IEnumerable<MemberDto>>> GetUsers() 
         {
-            return await _context.Users.ToListAsync();
-        }
-        // api/users/3
-        [Authorize]
-        [HttpGet("{id}")] // oznacza to, że jeśli w ścieżce zapytania będzie jakieś id, to zostanie użyta metoda GetUser a nie GetUsers
-        public async Task<ActionResult<AppUser>>  GetUser(int id) 
+            var users = await _userRepository.GetUsersAsync();            
+            var usersToReturn = _mapper.Map<IEnumerable<MemberDto>>(users);
+
+            return Ok(usersToReturn);
+        }        
+
+        [HttpGet("{username}")]
+        public async Task<ActionResult<MemberDto>> GetUser(string username)
         {
-            return await _context.Users.FindAsync(id);           
+            var user = await _userRepository.GetUserByUsernameAsync(username);
+            return _mapper.Map<MemberDto>(user);
         }
     }
 }
